@@ -9,13 +9,13 @@ private:
   uint8_t registers[15];
   uint8_t memory[4096];
 
-  uint8_t VF;
+  uint8_t VF = 0;
 
   uint16_t I; // Storing memory addresses
 
   uint16_t stack[16]; // Amount of stack
 
-  // Program counter and stack counter
+  // Program counter and stack pointer
   uint16_t PC = 0;
   uint16_t SP = 0;
 
