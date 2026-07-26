@@ -1,8 +1,69 @@
 #include "chip8.hpp"
 #include <cstdint>
 #include <cstdlib>
+#include <fstream>
+
+const unsigned int START_ADDRESS = 0x200;
+
+void Chip_8::LoadROM(char const* filename) {
+  // Open the file as a stream of binary and move the file pointer to the end
+  std::ifstream file(filename, std::ios::binary | std::ios::ate);
+  if (file.is_open()) {
+
+    // Get size of the file and allocate the buffer to hold the content
+    std::streampos size = file.tellg();
+    char* buffer = new char[size];
+
+    // Go back to the beginning of the file and fill the buffer
+    file.seekg(0, std::ios::beg);
+    file.read(buffer, size);
+    file.close();
+
+    // Load the ROM contents into the chip_8 Memory, starting at 0x200
+    for (long i = 0; i < size; ++i) {
+      memory[START_ADDRESS + i] = buffer[i];
+    }
+
+    // Free the buffer
+    delete[] buffer;
+  }
+}
+const unsigned int FONTSET_SIZE = 80;
+
+uint8_t fontset[FONTSET_SIZE] = 
+{
+    0xF0, 0x90, 0x90, 0x90, 0xF0, // 1
+    0x20, 0x60, 0x20, 0x20, 0x70, // 2
+    0xF0, 0x10, 0xF0, 0x80, 0xF0, // 3
+    0xF0, 0x10, 0xF0, 0x10, 0xF0, // 4
+    0x90, 0x90, 0xF0, 0x10, 0x10, // 5
+    0xF0, 0x80, 0xF0, 0x10, 0xF0, // 6
+    0xF0, 0x80, 0xF0, 0x90, 0xF0, // 7
+    0xF0, 0x10, 0x20, 0x40, 0x40, // 8
+    0xF0, 0x90, 0xF0, 0x90, 0xF0, // 9
+    0xF0, 0x90, 0xF0, 0x90, 0x90, // A
+    0xE0, 0x90, 0xE0, 0x90, 0xE0, // B
+    0xF0, 0x80, 0x80, 0x80, 0xF0, // C
+    0xE0, 0x90, 0x90, 0x90, 0xE0, // D
+    0xF0, 0x80, 0xF0, 0x80, 0xF0, // E
+    0xF0, 0x80, 0xF0, 0x80, 0x80  // F
+};
+
+const unsigned int FONTSET_START_ADDRESS = 0x50;
+
+Chip_8::Chip_8() {
+  // Initialize the program counter
+  PC = START_ADDRESS;
+
+  // Load fonts into memory
+  for (unsigned int i = 0; i < FONTSET_SIZE; ++i) {
+    memory[FONTSET_START_ADDRESS + i] = fontset[i];
+  }
+}
 
 void Chip_8::opcode(uint16_t code) {
+  //TODO:
+  //Need to overhaul this to avoid bloat when loading the code in
   uint16_t nnn = code & 0x0FFF;
   uint8_t a = code >> 12;
   uint8_t n = code & 0x000F;
@@ -12,7 +73,6 @@ void Chip_8::opcode(uint16_t code) {
 
   switch (a) {
     case 0:
-
     case 1: //Jump to location nnn/address
       PC += nnn;
       break;
