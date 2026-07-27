@@ -1,7 +1,9 @@
 #include "chip8.hpp"
 #include <cstdint>
-#include <cstdlib>
+#include <cstring>
 #include <fstream>
+#include <random>
+
 
 const unsigned int START_ADDRESS = 0x200;
 
@@ -28,6 +30,7 @@ void Chip_8::LoadROM(char const* filename) {
     delete[] buffer;
   }
 }
+
 const unsigned int FONTSET_SIZE = 80;
 
 uint8_t fontset[FONTSET_SIZE] = 
@@ -62,125 +65,163 @@ Chip_8::Chip_8() {
 }
 
 void Chip_8::opcode(uint16_t code) {
-  //TODO:
-  //Need to overhaul this to avoid bloat when loading the code in
-  uint16_t nnn = code & 0x0FFF;
-  uint8_t a = code >> 12;
-  uint8_t n = code & 0x000F;
-  uint8_t x = (code >> 8) & 0x000F;
-  uint8_t y = (code >> 4) & 0x000F;
-  uint8_t kk = code & 0x00FF;
+  //Defining the instructions' keys
+  // uint16_t nnn = code & 0x0FFF;
+  // uint8_t a = code >> 12;
+  // uint8_t n = code & 0x000F;
+  // uint8_t x = (code >> 8) & 0x000F;
+  // uint8_t y = (code >> 4) & 0x000F;
+  // uint8_t kk = code & 0x00FF;
 
-  switch (a) {
-    case 0:
-    case 1: //Jump to location nnn/address
-      PC += nnn;
+  switch (code >> 12) {
+    case 0: {
+      switch (code & 0x00FF) {
+        //Clear the display.
+        case 0xE0:
+          memset(video, 0, sizeof(video));
+          break;
+
+        // The interpreter sets the program counter 
+        // to the address at the top of the stack, 
+        // then subtracts 1 from the stack pointer.
+        case 0xEE:
+          --SP;
+          PC = stack[SP];
+          break;
+      }
+    }
+
+    //Jump to location nnn/address
+    case 1:
+      PC += (code & 0x0FFF);
       break;
 
-    case 2: //Call subroutine at nnn
+    //Call subroutine at nnn
+    case 2:
       stack[SP] = PC;
       ++SP;
-      PC = nnn;
+      PC = (code & 0x0FFF);
       break;
 
-    case 3: //Skip next instruction if Vx == kk
-      if(registers[x] != kk) {
+    //Skip next instruction if Vx == kk
+    case 3:
+      if(registers[(code >> 8) & 0x000F] != (code & 0x00FF)) {
         PC += 2;
       }
       break;
 
-    case 4: //Skip next instruction if Vx != kk
-      if(registers[x] == kk) {
+    //Skip next instruction if Vx != kk
+    case 4:
+      if(registers[(code >> 8) & 0x000F] == (code & 0x00FF)) {
         PC += 2;
       }
       break;
 
-    case 5: //Skip instruction if Vx == Vy
-      if (registers[x] == registers[y]) {
+    //Skip instruction if Vx == Vy
+    case 5:
+      if (registers[(code >> 8) & 0x000F] == registers[(code >> 4) & 0x000F]) {
         PC += 2;
       }
       break;
-
-    case 6: //Set Vx == kk
-      registers[x] = kk;
+    //The interpreter puts the value kk into register Vx.
+    case 6:
+      registers[(code >> 8) & 0x000F] = (code & 0x00FF);
       break;
 
-    case 7: //Set Vx = Vx + kk
-      registers[x] += kk;
+   //Adds the value kk to the value of register Vx, then stores the result in Vx.
+    case 7:
+      registers[(code >> 8) & 0x000F] += (code & 0x00FF);
       break;
 
     case 8:
-      switch (n) {
-        case 0: //Set Vx == Vy
-          registers[x] = registers[y];
+      switch (code & 0x000F) {
+        //Stores the value of register Vy in register Vx.
+        case 0:
+          registers[(code >> 8) & 0x000F] = registers[(code >> 4) & 0x000F];
           break;
+
+        //Performs a bitwise OR on the values of Vx and Vy, then stores the result in Vx. 
+        //A bitwise OR compares the corrseponding bits from two values , 
+        //and if either bit is 1, then the same bit in the result is also 1. Otherwise, it is 0. 
         case 1:
-          registers[x] = registers[x] | registers[y];
+          registers[(code >> 8) & 0x000F] |= registers[(code >> 4) & 0x000F];
           break;
+
         case 2:
-          registers[x] = registers[x] & registers[y];
+          registers[(code >> 8) & 0x000F] &= registers[(code >> 4) & 0x000F];
           break;
+
         case 3:
-          registers[x] = registers[x] ^ registers[y];
+          registers[(code >> 8) & 0x000F] ^= registers[(code >> 4) & 0x000F];
           break;
+
         case 4: {
-          uint8_t total = registers[x] + registers[y];
+          uint8_t total = registers[(code >> 8) & 0x000F] + registers[(code >> 4) & 0x000F];
           if(total > 0xFF) {
             VF = 1;
           } else {
             VF = 0;
           }
-          registers[x] = total;
+          registers[(code >> 8) & 0x000F] = total;
           break;
         }
+
         case 5: {
-          uint8_t subtract = registers[x] - registers[y];
-          if(registers[x] > registers[y]) {
+          uint8_t subtract = registers[(code >> 8) & 0x000F] - registers[(code >> 4) & 0x000F];
+          if(registers[(code >> 8) & 0x000F] > registers[(code >> 4) & 0x000F]) {
             VF = 1;
           } else {
             VF = 0;
           }
-          registers[x] = registers[y] - registers[x];
+          registers[(code >> 8) & 0x000F] = registers[(code >> 4) & 0x000F] - registers[(code >> 8) & 0x000F];
           break;
         }
+
         case 6: {
-          if(x & 0x0001) {
+          if(((code >> 8) & 0x000F) & 0x0001) {
             VF = 1;
           } else {
             VF = 0;
           }
-          registers[x] /= 2;
+          registers[(code >> 8) & 0x000F] /= 2;
           break;
         }
+
         case 7: {
-          if (registers[x] < registers[y]) {
+          if (registers[(code >> 8) & 0x000F] < registers[(code >> 4) & 0x000F]) {
             VF = 1;
           } else {
             VF = 0;
           }
-          registers[x] -= registers[y];
+          registers[(code >> 8) & 0x000F] -= registers[(code >> 4) & 0x000F];
           break;
         }
+
         case 14: {
           VF = 1;
-          registers[x] <<= 1;
+          registers[(code >> 8) & 0x000F] <<= 1;
           break;
         }
       }
+
       case 9:
-        if (registers[x] != registers[y]) {
+        if (registers[(code >> 8) & 0x000F] != registers[(code >> 4) & 0x000F]) {
           PC += 2;
         }
         break;
+
       case 10:
-        I = nnn;
+        I = (code & 0x0FFF);
         break;
+
       case 11:
-        PC = nnn + registers[0];
+        PC = (code & 0x0FFF) + registers[0];
         break;
+
       case 12: {
-        uint8_t random_byte = rand();
-        registers[x] = random_byte & kk;
+        std::default_random_engine randGen(std::random_device{}());
+        std::uniform_int_distribution<uint8_t> randByte(0, 255);
+        registers[(code >> 8) & 0x000F] = randByte(randGen) & (code & 0x00FF);
         break;
       }
   }

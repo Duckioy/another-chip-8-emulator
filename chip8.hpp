@@ -1,9 +1,7 @@
 #ifndef CHIP_8_
 #define CHIP_8_
 
-#include <chrono>
 #include <cstdint>
-#include <random>
 #include <stdint.h>
 
 class Chip_8 {
