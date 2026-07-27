@@ -4,7 +4,7 @@
 #include <fstream>
 #include <random>
 
-
+// Declaring the start address
 const unsigned int START_ADDRESS = 0x200;
 
 void Chip_8::LoadROM(char const* filename) {
@@ -21,7 +21,7 @@ void Chip_8::LoadROM(char const* filename) {
     file.read(buffer, size);
     file.close();
 
-    // Load the ROM contents into the chip_8 Memory, starting at 0x200
+    // Load the ROM contents into the chip_8 Memory, starting at 0x200 and run from it
     for (long i = 0; i < size; ++i) {
       memory[START_ADDRESS + i] = buffer[i];
     }
@@ -147,14 +147,24 @@ void Chip_8::opcode(uint16_t code) {
           registers[(code >> 8) & 0x000F] |= registers[(code >> 4) & 0x000F];
           break;
 
+        //Performs a bitwise AND on the values of Vx and Vy, 
+        //then stores the result in Vx. A bitwise AND compares the corrseponding 
+        //bits from two values, and if both bits are 1, then the same bit in the 
+        //result is also 1. Otherwise, it is 0. 
         case 2:
           registers[(code >> 8) & 0x000F] &= registers[(code >> 4) & 0x000F];
           break;
 
+        //Performs a bitwise exclusive OR on the values of Vx and Vy, 
+        //then stores the result in Vx. An exclusive OR compares the corrseponding 
+        //bits from two values, and if the bits are not both the same, then the corresponding 
+        //bit in the result is set to 1. Otherwise, it is 0.
         case 3:
           registers[(code >> 8) & 0x000F] ^= registers[(code >> 4) & 0x000F];
           break;
 
+        //The values of Vx and Vy are added together. If the result is greater than 8 bits (i.e., > 255,) 
+        //VF is set to 1, otherwise 0. Only the lowest 8 bits of the result are kept, and stored in Vx.
         case 4: {
           uint8_t total = registers[(code >> 8) & 0x000F] + registers[(code >> 4) & 0x000F];
           if(total > 0xFF) {
@@ -166,6 +176,8 @@ void Chip_8::opcode(uint16_t code) {
           break;
         }
 
+        // If Vx > Vy, then VF is set to 1, otherwise 0. 
+        // Then Vy is subtracted from Vx, and the results stored in Vx.
         case 5: {
           uint8_t subtract = registers[(code >> 8) & 0x000F] - registers[(code >> 4) & 0x000F];
           if(registers[(code >> 8) & 0x000F] > registers[(code >> 4) & 0x000F]) {
@@ -177,6 +189,8 @@ void Chip_8::opcode(uint16_t code) {
           break;
         }
 
+        // If the least-significant bit of Vx is 1, 
+        // then VF is set to 1, otherwise 0. Then Vx is divided by 2.
         case 6: {
           if(((code >> 8) & 0x000F) & 0x0001) {
             VF = 1;
@@ -187,6 +201,8 @@ void Chip_8::opcode(uint16_t code) {
           break;
         }
 
+        // If Vy > Vx, then VF is set to 1, otherwise 0. 
+        // Then Vx is subtracted from Vy, and the results stored in Vx.
         case 7: {
           if (registers[(code >> 8) & 0x000F] < registers[(code >> 4) & 0x000F]) {
             VF = 1;
@@ -197,6 +213,8 @@ void Chip_8::opcode(uint16_t code) {
           break;
         }
 
+        // If the most-significant bit of Vx is 1, 
+        // then VF is set to 1, otherwise to 0. Then Vx is multiplied by 2.
         case 14: {
           VF = 1;
           registers[(code >> 8) & 0x000F] <<= 1;
@@ -204,20 +222,27 @@ void Chip_8::opcode(uint16_t code) {
         }
       }
 
+      // The values of Vx and Vy are compared, 
+      // and if they are not equal, the program counter is increased by 2.
       case 9:
         if (registers[(code >> 8) & 0x000F] != registers[(code >> 4) & 0x000F]) {
           PC += 2;
         }
         break;
 
+      // The value of register I is set to nnn.
       case 10:
         I = (code & 0x0FFF);
         break;
 
+      // The program counter is set to nnn plus the value of V0.
       case 11:
         PC = (code & 0x0FFF) + registers[0];
         break;
 
+      // The interpreter generates a random number from 0 to 255, 
+      // which is then ANDed with the value kk. The results are stored 
+      // in Vx. See instruction 8xy2 for more information on AND.
       case 12: {
         std::default_random_engine randGen(std::random_device{}());
         std::uniform_int_distribution<uint8_t> randByte(0, 255);
