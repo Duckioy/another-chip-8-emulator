@@ -1,26 +1,65 @@
 #include "Chip_8.hpp"
 #include <cstdint>
+#include <cstring>
+#include <fstream>
 #include <iostream>
 #include <ostream>
 
+const uint8_t fontset[80]{
+    0xF0, 0x90, 0x90, 0x90, 0xF0, // 0
+    0x20, 0x60, 0x20, 0x20, 0x70, // 1
+    0xF0, 0x10, 0xF0, 0x80, 0xF0, // 2
+    0xF0, 0x10, 0xF0, 0x10, 0xF0, // 3
+    0x90, 0x90, 0xF0, 0x10, 0x10, // 4
+    0xF0, 0x80, 0xF0, 0x10, 0xF0, // 5
+    0xF0, 0x80, 0xF0, 0x90, 0xF0, // 6
+    0xF0, 0x10, 0x20, 0x40, 0x40, // 7
+    0xF0, 0x90, 0xF0, 0x90, 0xF0, // 8
+    0xF0, 0x90, 0xF0, 0x10, 0xF0, // 9
+    0xF0, 0x90, 0xF0, 0x90, 0x90, // A
+    0xE0, 0x90, 0xE0, 0x90, 0xE0, // B
+    0xF0, 0x80, 0x80, 0x80, 0xF0, // C
+    0xE0, 0x90, 0x90, 0x90, 0xE0, // D
+    0xF0, 0x80, 0xF0, 0x80, 0xF0, // E
+    0xF0, 0x80, 0xF0, 0x80, 0x80, // F
+};
+
+void Chip_8::loadROM(const std::string &filename) {
+    std::ifstream file(filename, std::ios::binary);
+
+    if (!file) {
+        std::cerr << "Cannot open ROM\n";
+        return;
+    }
+
+    file.read(reinterpret_cast<char *>(&memory[0x200]), sizeof(memory) - 0x200);
+}
+
 Chip_8::Chip_8() {
-    std::cout << "Holy Shit! Something is fuckin run..." << std::endl;
     pc = 0x0200;
     sp = 0x00;
     I = 0x0000;
+    memset(video, 0, sizeof(video));
+    memset(memory, 0, sizeof(memory));
+}
+
+void Chip_8::cycle() {
+    uint16_t code = (memory[pc] << 8) | memory[pc + 1];
+
+    pc += 2;
+
+    std::cout << std::hex << code << '\n';
+
+    opcode(code);
 }
 
 void Chip_8::opcode(uint16_t code) {
-    std::cout << "Welcome to this retared instructions for Chip_8 with nothing works at all" << std::endl;
-    std::cout << (code >> 12) << std::endl << (code & 0x00FF) << "\n";
     switch (code >> 12) {
     case 0x0: {
-        std::cout << "It is zero so it is nothing here, I swear" << std::endl;
         switch (code & 0x0FFF) {
 
         // Clear the (deez nuts) screen
         case 0x00E0:
-            std::cout << "Yes! I thank you to actually clean me up!" << std::endl;
             for (int i = 0; i < 32; ++i) {
                 std::cout << "█";
                 for (int j = 0; j < 64; ++j) {
@@ -31,15 +70,15 @@ void Chip_8::opcode(uint16_t code) {
             std::cout << std::endl;
             for (int i = 0; i < sizeof(video); ++i) {
                 video[i] = 0x00;
-                break;
             }
+            break;
         }
         break;
     }
+
     // Jump to location nnn.
     // The interpreter sets the program counter to nnn.
     case 0x1: {
-        std::cout << "Yes~ Jump on this position tehe~" << std::endl;
         pc = code & 0x0FFF;
         break;
     }
@@ -52,7 +91,6 @@ void Chip_8::opcode(uint16_t code) {
         V[x] = kk;
         break;
     }
-
     // Set Vx = Vx + kk.
     // Adds the value kk to the value of register Vx, then stores the result in Vx.
     case 0x7: {
@@ -81,7 +119,36 @@ void Chip_8::opcode(uint16_t code) {
         uint8_t x = (code >> 8) & 0x000F;
         uint8_t y = (code >> 4) & 0x000F;
         uint8_t n = code & 0x000F;
-        pc = I;
+
+        uint8_t xPos = V[x];
+        uint8_t yPos = V[y];
+        V[15] = 0;
+
+        for (int i = 0; i < n; i++) {
+
+            uint8_t spriteByte = memory[I + i];
+
+            for (int j = 0; j < 8; j++) {
+
+                if (spriteByte & (0x80 >> j)) {
+
+                    uint8_t screenX = (xPos + j) % 64;
+                    uint8_t screenY = (yPos + i) % 32;
+
+                    int pixelIndex = screenY * 64 + screenX;
+
+                    int byteIndex = pixelIndex / 8;
+                    int bitIndex = pixelIndex % 8;
+
+                    if (video[byteIndex] & (0x80 >> bitIndex)) {
+                        V[0xF] = 1;
+                    }
+
+                    video[byteIndex] ^= (0x80 >> bitIndex);
+                }
+            }
+        }
+        break;
     }
     }
 }

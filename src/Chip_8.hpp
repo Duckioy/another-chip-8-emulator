@@ -3,14 +3,24 @@
 
 // Declaring libraries
 #include <cstdint>
+#include <string>
 
 class Chip_8 {
   public:
+    // Declaring memory
+    uint8_t memory[4096];
+
     // Constructor
     Chip_8();
 
     // Declaring Chip_8's instruction
     void opcode(uint16_t code);
+
+    // Load the cycle
+    void cycle();
+
+    // Load ROM
+    void loadROM(const std::string &filename);
 
   private:
     // Declaring registers
@@ -20,9 +30,6 @@ class Chip_8 {
     // Declaring program counter and stack pointer
     uint16_t pc; // The program begins at 0x200
     uint8_t sp;
-
-    // Declaring memory
-    uint8_t memory[4096];
 
     // Declaring display
     uint8_t video[256];
