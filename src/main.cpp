@@ -11,7 +11,7 @@ int main(int argc, char *argv[]) {
     chip8.loadROM(argv[1]);
 
     // CPU loop
-    for (int i = 0; i < 8; i++) {
+    while (true) {
         chip8.cycle();
     }
 }

@@ -22,6 +22,8 @@ class Chip_8 {
     // Load ROM
     void loadROM(const std::string &filename);
 
+    void render();
+
   private:
     // Declaring registers
     uint8_t V[16];
@@ -29,7 +31,7 @@ class Chip_8 {
 
     // Declaring program counter and stack pointer
     uint16_t pc; // The program begins at 0x200
-    uint8_t sp;
+    uint8_t sp;  // Stack pointer
 
     // Declaring display
     uint8_t video[256];

@@ -48,8 +48,6 @@ void Chip_8::cycle() {
 
     pc += 2;
 
-    std::cout << std::hex << code << '\n';
-
     opcode(code);
 }
 
@@ -61,16 +59,14 @@ void Chip_8::opcode(uint16_t code) {
         // Clear the (deez nuts) screen
         case 0x00E0:
             for (int i = 0; i < 32; ++i) {
-                std::cout << "█";
+                std::cout << "░";
                 for (int j = 0; j < 64; ++j) {
-                    std::cout << "█";
+                    std::cout << "░";
                 }
                 std::cout << "\n";
             }
             std::cout << std::endl;
-            for (int i = 0; i < sizeof(video); ++i) {
-                video[i] = 0x00;
-            }
+            memset(video, 0, sizeof(video));
             break;
         }
         break;
@@ -105,6 +101,7 @@ void Chip_8::opcode(uint16_t code) {
     case 0xA: {
         uint16_t nnn = code & 0x0FFF;
         I = nnn;
+        std::cout << I << std::endl;
         break;
     }
 
@@ -147,8 +144,27 @@ void Chip_8::opcode(uint16_t code) {
                     video[byteIndex] ^= (0x80 >> bitIndex);
                 }
             }
+            render();
         }
         break;
     }
+    default:
+        std::cout << "Unknown opcode: " << std::hex << code << '\n';
+        break;
+    }
+}
+
+void Chip_8::render() {
+    for (int y = 0; y < 32; y++) {
+        for (int x = 0; x < 64; x++) {
+            int pixelIndex = (y * 64) + x;
+            int byteIndex = pixelIndex >> 3;
+            int bitIndex = pixelIndex % 8;
+
+            bool on = video[byteIndex] & (0x80 >> bitIndex);
+
+            std::cout << (on ? "█" : "░");
+        }
+        std::cout << '\n';
     }
 }
